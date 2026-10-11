@@ -163,11 +163,10 @@ def plot_confusion(y_true, y_pred, labels, title):
 
 st.set_page_config(page_title="Decision Tree Classifier", layout="wide")
 st.title("Decision Tree Classification System")
-st.caption("ID3, C4.5 and CHAID implemented from scratch")
 
 uploaded = st.sidebar.file_uploader("Upload a CSV dataset", type=["csv"])
 if uploaded is None:
-    st.info("Upload a CSV file from the sidebar to begin.")
+    st.info("Upload a CSV file from the sidebar.")
     st.stop()
 
 df = load_csv(uploaded)
