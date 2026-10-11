@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import streamlit as st
+from scipy.stats import chi2_contingency
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 )
@@ -15,6 +16,7 @@ MAX_DEPTH = 5
 MIN_SAMPLES = 2
 RANDOM_STATE = 42
 NUMERIC_BINS = 4
+CHAID_ALPHA = 0.05
 
 
 def load_csv(file):
@@ -67,19 +69,31 @@ def split_score(y, column, method):
     return info_gain / split_info if split_info > 0 else 0.0
 
 
+def chi_square_p(column, y):
+    table = pd.crosstab(column, y)
+    if table.shape[0] < 2 or table.shape[1] < 2:
+        return 1.0
+    return float(chi2_contingency(table)[1])
+
+
 def build_tree(X, y, features, method, depth=0):
     majority = y.value_counts().idxmax()
     if len(y.unique()) == 1 or not features or depth >= MAX_DEPTH or len(y) < MIN_SAMPLES:
         return {"leaf": True, "label": majority}
 
-    best_feature, best_score = None, -1.0
-    for f in features:
-        score = split_score(y, X[f], method)
-        if score > best_score:
-            best_feature, best_score = f, score
-
-    if best_score <= 1e-10:
-        return {"leaf": True, "label": majority}
+    if method == "CHAID":
+        p_values = {f: chi_square_p(X[f], y) for f in features}
+        best_feature = min(p_values, key=p_values.get)
+        if p_values[best_feature] >= CHAID_ALPHA:
+            return {"leaf": True, "label": majority}
+    else:
+        best_feature, best_score = None, -1.0
+        for f in features:
+            score = split_score(y, X[f], method)
+            if score > best_score:
+                best_feature, best_score = f, score
+        if best_score <= 1e-10:
+            return {"leaf": True, "label": majority}
 
     node = {"leaf": False, "feature": best_feature, "default": majority, "branches": {}}
     remaining = [f for f in features if f != best_feature]
@@ -149,7 +163,7 @@ def plot_confusion(y_true, y_pred, labels, title):
 
 st.set_page_config(page_title="Decision Tree Classifier", layout="wide")
 st.title("Decision Tree Classification System")
-st.caption("ID3 and C4.5 implemented from scratch")
+st.caption("ID3, C4.5 and CHAID implemented from scratch")
 
 uploaded = st.sidebar.file_uploader("Upload a CSV dataset", type=["csv"])
 if uploaded is None:
@@ -188,10 +202,11 @@ st.write(f"Training rows: **{len(X_train)}** | Testing rows: **{len(X_test)}**")
 
 features = list(X.columns)
 labels = sorted(y.unique())
-tabs = st.tabs(["ID3", "C4.5", "Comparison"])
+methods = ["ID3", "C4.5", "CHAID"]
+tabs = st.tabs(methods + ["Comparison"])
 all_metrics = []
 
-for tab, method in zip(tabs[:2], ["ID3", "C4.5"]):
+for tab, method in zip(tabs[:3], methods):
     with tab:
         tree = build_tree(X_train, y_train, features, method)
         y_pred = np.array([predict_one(tree, row) for _, row in X_test.iterrows()])
@@ -216,7 +231,7 @@ for tab, method in zip(tabs[:2], ["ID3", "C4.5"]):
             result["Predicted"] = y_pred
             st.dataframe(result)
 
-with tabs[2]:
+with tabs[3]:
     comparison = pd.DataFrame(all_metrics).set_index("Algorithm").round(4)
     st.subheader("Performance comparison")
     st.dataframe(comparison)
