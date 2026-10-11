@@ -1,6 +1,6 @@
 # Decision Tree Classification System
 
-An interactive Streamlit app that builds ID3 and C4.5 decision trees from an uploaded CSV dataset, displays the trees, generates predictions, and compares the algorithms using accuracy, precision, recall, F1-score, and confusion matrices.
+An interactive Streamlit app that builds ID3, C4.5 and CHAID decision trees from an uploaded CSV dataset, displays the trees, generates predictions, and compares the algorithms using accuracy, precision, recall, F1-score, and confusion matrices.
 
 ## Run locally
 
